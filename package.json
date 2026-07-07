@@ -1,0 +1,16 @@
+{
+  "name": "bookmark-list-generator",
+  "version": "1.0.0",
+  "description": "Generate a markdown file from Obsidian bookmarks",
+  "main": "main.js",
+  "scripts": {
+    "build": "esbuild main.js --bundle --external:obsidian --external:electron --format=cjs --outfile=main.js"
+  },
+  "keywords": ["bookmark", "organizer", "markdown"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.13.12",
+    "obsidian": "latest"
+  }
+}
