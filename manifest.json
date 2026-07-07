@@ -3,8 +3,7 @@
   "name": "Bookmark List File Generator",
   "version": "1.0.0",
   "minAppVersion": "0.12.0",
-  "description": "Generate a markdown file from Obsidian bookmarks automatically",
-  "author": "Bookmark List Generator",
-  "authorUrl": "https://obsidian.md",
+  "description": "Generate a markdown file from your bookmarks automatically.",
+  "author": "newcodejin",
   "isDesktopOnly": false
 }
