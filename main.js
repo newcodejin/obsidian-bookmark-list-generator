@@ -7,7 +7,8 @@ const { Plugin, PluginSettingTab, Setting, Notice } = require('obsidian');
 const DEFAULT_SETTINGS = {
   outputFileName: 'Bookmarks.md',
   autoUpdate: false,
-  updateInterval: 60
+  updateInterval: 60,
+  excludeDeleted: false
 };
 
 class BookmarkListGeneratorPlugin extends Plugin {
@@ -83,13 +84,23 @@ class BookmarkListGeneratorPlugin extends Plugin {
     }
   }
 
+  // True if the bookmark points to a file/folder that no longer exists in the vault
+  isDeleted(item) {
+    if ((item.type === 'file' || item.type === 'folder') && item.path) {
+      return !this.app.vault.getAbstractFileByPath(item.path);
+    }
+    return false;
+  }
+
   // Count total bookmarks (every item except groups themselves)
   countBookmarks(data) {
     let count = 0;
     const traverse = (items) => {
       items.forEach(item => {
         if (item.type !== 'group') {
-          count++;
+          if (!(this.settings.excludeDeleted && this.isDeleted(item))) {
+            count++;
+          }
         }
         if (item.items) {
           traverse(item.items);
@@ -136,10 +147,14 @@ class BookmarkListGeneratorPlugin extends Plugin {
           md += this.renderItems(item.items, depth + 1);
         }
       } else if (item.type === 'file' && item.path) {
-        const link = item.title ? `[[${item.path}|${item.title}]]` : `[[${item.path}]]`;
-        md += `${indent}- ${link}\n`;
+        if (!(this.settings.excludeDeleted && this.isDeleted(item))) {
+          const link = item.title ? `[[${item.path}|${item.title}]]` : `[[${item.path}]]`;
+          md += `${indent}- ${link}\n`;
+        }
       } else if (item.type === 'folder' && item.path) {
-        md += `${indent}- 🗂️ ${item.path}\n`;
+        if (!(this.settings.excludeDeleted && this.isDeleted(item))) {
+          md += `${indent}- 🗂️ ${item.path}\n`;
+        }
       } else if (item.type === 'url' && item.url) {
         md += `${indent}- 🔗 [${item.title || item.url}](${item.url})\n`;
       } else if (item.type === 'search' && item.query) {
@@ -172,6 +187,17 @@ class GeneratorSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.outputFileName)
         .onChange(async (value) => {
           this.plugin.settings.outputFileName = value || 'Bookmarks.md';
+          await this.plugin.saveSettings();
+        }));
+
+    // Deleted-note handling toggle
+    new Setting(containerEl)
+      .setName('Exclude Deleted Notes')
+      .setDesc('Leave out bookmarks whose note no longer exists in the vault.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.excludeDeleted)
+        .onChange(async (value) => {
+          this.plugin.settings.excludeDeleted = value;
           await this.plugin.saveSettings();
         }));
 
