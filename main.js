@@ -2,8 +2,6 @@
 // Generates a markdown file from Obsidian bookmarks
 
 const { Plugin, PluginSettingTab, Setting, Notice } = require('obsidian');
-const fs = require('fs');
-const path = require('path');
 
 // Default plugin settings
 const DEFAULT_SETTINGS = {
@@ -59,16 +57,14 @@ class BookmarkListGeneratorPlugin extends Plugin {
   // Main function to generate bookmark list
   async generateBookmarkList() {
     try {
-      const vaultPath = this.app.vault.adapter.basePath;
-      const bookmarksPath = path.join(vaultPath, '.obsidian', 'bookmarks.json');
-
-      if (!fs.existsSync(bookmarksPath)) {
-        new Notice('❌ bookmarks.json not found');
+      // Read live bookmark data from the core Bookmarks plugin
+      // (always current, unlike bookmarks.json which Obsidian writes with a delay)
+      const bookmarksPlugin = this.app.internalPlugins.getPluginById('bookmarks');
+      if (!bookmarksPlugin || !bookmarksPlugin.enabled) {
+        new Notice('❌ The Bookmarks core plugin is disabled');
         return;
       }
-
-      const content = fs.readFileSync(bookmarksPath, 'utf-8');
-      const data = JSON.parse(content);
+      const data = { items: bookmarksPlugin.instance.items || [] };
 
       const markdown = this.buildMarkdown(data);
       const outputFile = this.app.vault.getAbstractFileByPath(this.settings.outputFileName);
@@ -87,12 +83,12 @@ class BookmarkListGeneratorPlugin extends Plugin {
     }
   }
 
-  // Count total bookmarks
+  // Count total bookmarks (every item except groups themselves)
   countBookmarks(data) {
     let count = 0;
     const traverse = (items) => {
       items.forEach(item => {
-        if (item.type === 'file' || item.type === 'folder') {
+        if (item.type !== 'group') {
           count++;
         }
         if (item.items) {
@@ -110,46 +106,47 @@ class BookmarkListGeneratorPlugin extends Plugin {
     md += '> Auto-generated bookmark list | ' + new Date().toISOString().split('T')[0] + '\n\n';
     md += '---\n\n';
 
-    const groups = data.items.filter(item => item.type === 'group');
-
-    groups.forEach((group, idx) => {
-      md += `## 📌 Group ${idx + 1}\n\n`;
-
-      if (group.items) {
-        const files = this.flattenFiles(group.items);
-        files.forEach((file, fileIdx) => {
-          if (file.path) {
-            md += `${fileIdx + 1}. [[${file.path}]]\n`;
-          }
-        });
-      }
-
-      md += '\n---\n\n';
-    });
+    md += this.renderItems(data.items, 0);
 
     // Add statistics
+    md += '\n---\n\n';
     md += '## 📊 Statistics\n\n';
-    groups.forEach((group, idx) => {
-      const count = this.countBookmarks({ items: [group] });
-      md += `- **Group ${idx + 1}**: ${count} items\n`;
+    const groups = data.items.filter(item => item.type === 'group');
+    groups.forEach(group => {
+      const count = this.countBookmarks({ items: group.items || [] });
+      md += `- **${group.title || 'Untitled group'}**: ${count} items\n`;
     });
-    md += `- **Total**: ${this.countBookmarks(data)} items\n\n`;
-    md += '> 💡 Click any filename to navigate to that note.\n';
+    const looseCount = this.countBookmarks({ items: data.items.filter(item => item.type !== 'group') });
+    if (looseCount > 0) {
+      md += `- **Ungrouped**: ${looseCount} items\n`;
+    }
+    md += `- **Total**: ${this.countBookmarks(data)} items\n`;
 
     return md;
   }
 
-  // Flatten nested bookmark items to get all files
-  flattenFiles(items) {
-    let result = [];
+  // Recursively render all bookmark items, preserving group hierarchy
+  renderItems(items, depth) {
+    let md = '';
+    const indent = '  '.repeat(depth);
     items.forEach(item => {
-      if (item.type === 'file') {
-        result.push(item);
-      } else if (item.type === 'group' && item.items) {
-        result = result.concat(this.flattenFiles(item.items));
+      if (item.type === 'group') {
+        md += `${indent}- 📁 **${item.title || 'Untitled group'}**\n`;
+        if (item.items) {
+          md += this.renderItems(item.items, depth + 1);
+        }
+      } else if (item.type === 'file' && item.path) {
+        const link = item.title ? `[[${item.path}|${item.title}]]` : `[[${item.path}]]`;
+        md += `${indent}- ${link}\n`;
+      } else if (item.type === 'folder' && item.path) {
+        md += `${indent}- 🗂️ ${item.path}\n`;
+      } else if (item.type === 'url' && item.url) {
+        md += `${indent}- 🔗 [${item.title || item.url}](${item.url})\n`;
+      } else if (item.type === 'search' && item.query) {
+        md += `${indent}- 🔍 \`${item.query}\`\n`;
       }
     });
-    return result;
+    return md;
   }
 }
 
@@ -198,14 +195,16 @@ class GeneratorSettingTab extends PluginSettingTab {
 
     // Update interval setting (only show if auto-update is enabled)
     if (this.plugin.settings.autoUpdate) {
-      new Setting(containerEl)
+      const intervalSetting = new Setting(containerEl)
         .setName('Update Interval (minutes)')
-        .setDesc('How often to regenerate the bookmark list')
+        .setDesc(`How often to regenerate the bookmark list. Current: ${this.plugin.settings.updateInterval} minutes`)
         .addSlider(slider => slider
           .setLimits(1, 1440, 1)
           .setValue(this.plugin.settings.updateInterval)
+          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.updateInterval = value;
+            intervalSetting.setDesc(`How often to regenerate the bookmark list. Current: ${value} minutes`);
             await this.plugin.saveSettings();
             this.plugin.scheduleAutoUpdate();
           }));

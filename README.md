@@ -1,28 +1,23 @@
-// Bookmark List File Generator
+# Bookmark List File Generator
 
-Generate a markdown file from your Obsidian bookmarks automatically.
-
-## Installation
-
-```bash
-cd .obsidian/plugins/bookmark-list-generator
-npm install
-npm run build
-```
-
-Restart Obsidian and enable the plugin from Community Plugins.
+An Obsidian plugin that generates a markdown file (`Bookmarks.md`) from your bookmarks.
 
 ## Usage
 
-1. Open Command Palette (Ctrl+P / Cmd+P)
-2. Run "Generate Bookmark List"
-3. Your bookmark list is created as `Bookmarks.md`
+Open the Command Palette (`Ctrl+P`) and run **"Generate Bookmark List"**.
 
 ## Settings
 
-- **Output Filename**: Customize the output file name
-- **Enable Auto-Update**: Regenerate bookmarks automatically
-- **Update Interval**: Set the refresh interval in minutes
+| Setting | Description |
+|---------|-------------|
+| Output Filename | Name of the generated file (default: `Bookmarks.md`) |
+| Enable Auto-Update | Turn automatic regeneration on/off |
+| Update Interval | Minutes between updates; the slider shows the current value |
+
+## ⚠️ Notes
+
+- **Don't edit the generated file by hand.** Its content is fully overwritten on every update — treat it as read-only.
+- **The Bookmarks core plugin must be enabled** (Settings → Core plugins → Bookmarks).
 
 ## License
 
