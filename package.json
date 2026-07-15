@@ -1,6 +1,6 @@
 {
   "name": "bookmark-list-generator",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Generate a markdown file from Obsidian bookmarks",
   "main": "main.js",
   "scripts": {

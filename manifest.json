@@ -1,7 +1,7 @@
 {
   "id": "bookmark-list-generator",
   "name": "Bookmark List File Generator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minAppVersion": "0.12.0",
   "description": "Generate a markdown file from your bookmarks automatically.",
   "author": "newcodejin",
